@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Management Portal | Student & Organizer Hub</title>
+  <meta name="description" content="Centralized Event Management Portal with Student Registration, Organizer Hub, QR Code Attendance, and Real-Time Analytics.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- HTML5-QRCode Scanner for camera QR check-ins -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+  <!-- QRCode.js for client-side dynamic QR code generation -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Background Animated Glow Orbs -->
+  <div class="glow-bg">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="app-layout">
+    <!-- Top Navigation Bar -->
+    <header class="top-header">
+      <div class="header-left">
+        <div class="logo-box">
+          <div class="logo-icon"><i class="fa-solid fa-calendar-star"></i></div>
+          <div class="logo-text">
+            <h1>EventHub</h1>
+            <span class="logo-sub">Event Management Portal</span>
+          </div>
+        </div>
+
+        <!-- Role Badge Display -->
+        <div class="role-badge-pill" id="current-role-badge">
+          <span class="role-dot student"></span>
+          <span id="role-text-label">Student Portal</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div class="sse-status" id="sse-status-badge">
+          <span class="pulse-dot"></span>
+          <span id="sse-status-text">Connecting Live Stream...</span>
+        </div>
+        <div class="live-clock" id="live-clock">--:--:--</div>
+      </div>
+
+      <div class="header-right">
+        <!-- User Profile & Auth Controls -->
+        <div class="user-session-box" id="user-session-container">
+          <div class="user-info-text">
+            <span class="u-name" id="user-display-name">Aarav Sharma</span>
+            <span class="u-role" id="user-display-role">Student</span>
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-switch-account" title="Switch Portal / Account">
+            <i class="fa-solid fa-arrow-right-arrow-left"></i> Switch Role
+          </button>
+          <button class="btn btn-sm btn-ghost" id="btn-logout" title="Sign Out">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
+        <!-- Notification Bell Dropdown Toggle -->
+        <div class="notif-bell-wrapper">
+          <button class="icon-btn" id="btn-toggle-notifs" aria-label="Notifications">
+            <i class="fa-regular fa-bell"></i>
+            <span class="bell-badge" id="notif-badge">0</span>
+          </button>
+
+          <!-- Notification Dropdown Panel -->
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-dropdown-header">
+              <div class="notif-title-row">
+                <i class="fa-solid fa-bell"></i>
+                <h3>Real-Time Notifications</h3>
+              </div>
+              <button class="btn-text-link" id="btn-mark-all-read">Mark all read</button>
+            </div>
+            <div class="notif-dropdown-list" id="header-notif-list">
+              <!-- Rendered via JS -->
+            </div>
+            <div class="notif-dropdown-footer">
+              <button class="btn-text-link" id="btn-view-all-notifs">Go to Notification Center &rarr;</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="icon-btn" id="btn-toggle-theme" title="Toggle Light/Dark Theme">
+          <i class="fa-solid fa-moon" id="theme-icon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Role Context Welcome Banner -->
+    <section class="portal-welcome-strip" id="portal-welcome-strip">
+      <div class="welcome-inner">
+        <div class="welcome-left">
+          <i class="fa-solid fa-user-graduate icon-role" id="welcome-role-icon"></i>
+          <div>
+            <h2 id="welcome-title">Student Portal: Browse & Register for Events</h2>
+            <p id="welcome-subtitle">Explore upcoming campus events, secure your seat, and generate instant digital QR passes.</p>
+          </div>
+        </div>
+        <div class="welcome-actions" id="welcome-actions-container">
+          <!-- Dynamic Action Buttons depending on role -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="main-tabs" id="main-nav-tabs" role="tablist">
+      <!-- Tabs will be rendered dynamically based on active role (Student vs Organizer) -->
+    </nav>
+
+    <!-- Main Tab Content Area -->
+    <main class="main-container">
+      
+      <!-- ============================================================ -->
+      <!-- TAB: STUDENT - MY TICKETS & PASSES -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="pane-my-tickets">
+        <div class="section-hero">
+          <div>
+            <h2 class="section-title">My Registered Events & Digital Passes</h2>
+            <p class="section-subtitle">View your confirmed registrations, check-in status, and instant QR admission passes.</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-outline btn-sm" id="btn-refresh-my-tickets">
+              <i class="fa-solid fa-rotate-right"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="my-tickets-grid" id="my-tickets-container">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: BROWSE EVENTS (Available to both Student and Organizer) -->
+      <!-- ============================================================ -->
+      <section class="tab-pane active" id="pane-events">
+        <div class="section-hero">
+          <div>
+            <h2 class="section-title">Explore Active Campus Events</h2>
+            <p class="section-subtitle">Discover workshops, tech conferences, hackathons, and cultural festivals with live seat availability.</p>
+          </div>
+          <div class="hero-actions" id="events-hero-actions">
+            <!-- "Create Event" button shows here for Organizer -->
+          </div>
+        </div>
+
+        <!-- Filter and Search Bar -->
+        <div class="filter-bar glass-panel">
+          <div class="search-input-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="event-search-input" placeholder="Search events by title, venue, or keyword..." />
+          </div>
+          <div class="filter-tags" id="event-category-filters">
+            <button class="filter-pill active" data-category="ALL">All Categories</button>
+            <button class="filter-pill" data-category="Artificial Intelligence">AI</button>
+            <button class="filter-pill" data-category="Hackathon">Hackathon</button>
+            <button class="filter-pill" data-category="Workshop">Workshop</button>
+            <button class="filter-pill" data-category="Cybersecurity">Cybersecurity</button>
+            <button class="filter-pill" data-category="Cultural">Cultural</button>
+          </div>
+        </div>
+
+        <!-- Event Cards Grid -->
+        <div class="events-grid" id="events-grid-container">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: ORGANIZER - ANALYTICS DASHBOARD -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="pane-analytics">
+        <div class="section-hero">
+          <div>
+            <h2 class="section-title">Event Performance & Turnout Analytics</h2>
+            <p class="section-subtitle">Real-time attendance rates, registration velocity, capacity fill rates, and participation metrics.</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-outline btn-sm" id="btn-refresh-analytics">
+              <i class="fa-solid fa-rotate-right"></i> Refresh
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-export-csv">
+              <i class="fa-solid fa-file-arrow-down"></i> Export Report (CSV)
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card glass-panel">
+            <div class="kpi-header">
+              <span class="kpi-label">Total Events</span>
+              <div class="kpi-icon icon-indigo"><i class="fa-solid fa-calendar-check"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-events">--</div>
+            <div class="kpi-footer">
+              <span class="trend-badge positive"><i class="fa-solid fa-arrow-up"></i> Active</span>
+              <span class="kpi-subtext">Published campus events</span>
+            </div>
+          </div>
+
+          <div class="kpi-card glass-panel">
+            <div class="kpi-header">
+              <span class="kpi-label">Total Registrations</span>
+              <div class="kpi-icon icon-cyan"><i class="fa-solid fa-users"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-registrations">--</div>
+            <div class="kpi-footer">
+              <span class="kpi-subtext">Across all event categories</span>
+            </div>
+          </div>
+
+          <div class="kpi-card glass-panel">
+            <div class="kpi-header">
+              <span class="kpi-label">Live Checked-In</span>
+              <div class="kpi-icon icon-emerald"><i class="fa-solid fa-user-check"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-checkedin">--</div>
+            <div class="kpi-footer">
+              <span class="trend-badge positive" id="kpi-attendance-rate">--%</span>
+              <span class="kpi-subtext">Attendance Turnout Rate</span>
+            </div>
+          </div>
+
+          <div class="kpi-card glass-panel">
+            <div class="kpi-header">
+              <span class="kpi-label">Capacity Utilization</span>
+              <div class="kpi-icon icon-amber"><i class="fa-solid fa-gauge-high"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-capacity-fill">--%</div>
+            <div class="kpi-footer">
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="kpi-capacity-bar" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+          <!-- Chart 1: Attendance vs Registered per Event -->
+          <div class="chart-card glass-panel">
+            <div class="chart-card-header">
+              <div>
+                <h3 class="chart-title">Attendance vs. Registrations by Event</h3>
+                <p class="chart-subtitle">Direct comparison of registered participants vs verified QR check-ins</p>
+              </div>
+              <span class="chart-badge"><i class="fa-solid fa-chart-column"></i> Turnout</span>
+            </div>
+            <div class="chart-canvas-wrapper">
+              <canvas id="attendanceBarChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 2: Category Distribution -->
+          <div class="chart-card glass-panel">
+            <div class="chart-card-header">
+              <div>
+                <h3 class="chart-title">Participation by Category</h3>
+                <p class="chart-subtitle">Registrations categorized by event domain</p>
+              </div>
+              <span class="chart-badge"><i class="fa-solid fa-chart-pie"></i> Distribution</span>
+            </div>
+            <div class="chart-canvas-wrapper doughnut-wrapper">
+              <canvas id="categoryDoughnutChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 3: Live Check-in Velocity Timeline -->
+          <div class="chart-card glass-panel chart-full-width">
+            <div class="chart-card-header">
+              <div>
+                <h3 class="chart-title">Real-Time Check-In Velocity (Hourly)</h3>
+                <p class="chart-subtitle">Turnout rate and check-in gate load across event hours</p>
+              </div>
+              <div class="live-tag">
+                <span class="pulse-dot"></span> Live Scan Ticker
+              </div>
+            </div>
+            <div class="chart-canvas-wrapper" style="height: 240px;">
+              <canvas id="velocityLineChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Event Performance Table -->
+        <div class="glass-panel table-panel">
+          <div class="table-header-row">
+            <div>
+              <h3 class="chart-title">Event Performance Metrics</h3>
+              <p class="chart-subtitle">Capacity limits, total registrations, and QR verification ratios</p>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="analytics-events-table">
+              <thead>
+                <tr>
+                  <th>Event ID & Title</th>
+                  <th>Category</th>
+                  <th>Capacity</th>
+                  <th>Registered</th>
+                  <th>Checked-In</th>
+                  <th>Attendance %</th>
+                  <th>Capacity Fill</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: ORGANIZER - QR ATTENDANCE VERIFICATION TERMINAL -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="pane-checkin">
+        <div class="section-hero">
+          <div>
+            <h2 class="section-title">QR Attendance Verification Terminal</h2>
+            <p class="section-subtitle">Rapid QR ticket scanning, instant database verification, duplicate scan detection, and audio feedback.</p>
+          </div>
+          <div class="hero-actions">
+            <span class="live-tag"><i class="fa-solid fa-satellite-dish"></i> Gate Terminal Ready</span>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Scanner & Manual Verification Card -->
+          <div class="glass-panel scanner-card">
+            <div class="scanner-card-header">
+              <div class="scanner-tabs">
+                <button class="scanner-tab-btn active" id="tab-scan-camera">
+                  <i class="fa-solid fa-camera"></i> Live Camera Scan
+                </button>
+                <button class="scanner-tab-btn" id="tab-scan-manual">
+                  <i class="fa-solid fa-keyboard"></i> Manual / Barcode Input
+                </button>
+              </div>
+            </div>
+
+            <!-- Camera Scanner Viewport -->
+            <div id="camera-scanner-view" class="scanner-viewport-box">
+              <div id="qr-reader" style="width: 100%;"></div>
+              <div class="camera-controls">
+                <button class="btn btn-sm btn-primary" id="btn-start-camera">
+                  <i class="fa-solid fa-play"></i> Start Camera Scanner
+                </button>
+                <button class="btn btn-sm btn-outline" id="btn-stop-camera" style="display: none;">
+                  <i class="fa-solid fa-stop"></i> Stop Camera
+                </button>
+              </div>
+              <p class="scanner-hint"><i class="fa-solid fa-expand"></i> Align participant digital or printed QR pass within the frame</p>
+            </div>
+
+            <!-- Manual Ticket Input Form (Fast & Reliable) -->
+            <div id="manual-scanner-view" class="manual-input-box" style="display: none;">
+              <form id="manual-checkin-form">
+                <div class="form-group">
+                  <label for="input-ticket-id">Scan / Enter Ticket ID or JSON payload:</label>
+                  <div class="input-with-action">
+                    <input type="text" id="input-ticket-id" placeholder="e.g. TK-AI-10103" autocomplete="off" />
+                    <button type="submit" class="btn btn-primary" id="btn-verify-ticket">
+                      <i class="fa-solid fa-check"></i> Verify
+                    </button>
+                  </div>
+                </div>
+              </form>
+
+              <!-- One-Click Quick Test Attendees for fast presentation review -->
+              <div class="quick-sim-box">
+                <span class="quick-sim-label"><i class="fa-solid fa-wand-magic-sparkles"></i> 1-Click Verification Test (Unchecked Attendees):</span>
+                <div class="quick-sim-buttons" id="quick-sim-chips">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Verification Result Display Card -->
+            <div class="scan-result-card" id="scan-result-display" style="display: none;">
+              <!-- Populated dynamically upon scan -->
+            </div>
+          </div>
+
+          <!-- Live Attendance Log Stream -->
+          <div class="glass-panel">
+            <div class="card-header-styled">
+              <div class="step-badge icon-badge"><i class="fa-solid fa-list-check"></i></div>
+              <div>
+                <h3>Real-Time Check-In Audit Stream</h3>
+                <p>Chronological feed of all verified participants as they enter venues.</p>
+              </div>
+            </div>
+
+            <div class="audit-log-stream" id="audit-log-stream">
+              <!-- Dynamically populated via JS and SSE -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: ORGANIZER - ATTENDEES DIRECTORY -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="pane-attendees">
+        <div class="section-hero">
+          <div>
+            <h2 class="section-title">Registered Attendees Directory</h2>
+            <p class="section-subtitle">Complete registry of all registered participants, event assignments, and live check-in statuses.</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-outline btn-sm" id="btn-refresh-attendees">
+              <i class="fa-solid fa-rotate-right"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-panel table-panel">
+          <div class="table-header-row">
+            <div>
+              <h3 class="chart-title">Participant Records</h3>
+              <p class="chart-subtitle">Real-time attendance statuses and digital QR ticket links</p>
+            </div>
+            <div class="table-actions">
+              <input type="text" class="input-sm" id="search-attendees-input" placeholder="Search name or ticket ID..." />
+              <select class="input-sm" id="filter-attendee-status">
+                <option value="">All Statuses</option>
+                <option value="Confirmed">Confirmed (Pending)</option>
+                <option value="Attended">Attended (Checked-In)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="data-table" id="attendees-table">
+              <thead>
+                <tr>
+                  <th>Ticket ID</th>
+                  <th>Attendee Name</th>
+                  <th>Student ID</th>
+                  <th>Event</th>
+                  <th>Department</th>
+                  <th>Registered At</th>
+                  <th>Status</th>
+                  <th>QR Pass</th>
+                </tr>
+              </thead>
+              <tbody id="attendees-table-body">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- TAB: NOTIFICATIONS & ANNOUNCEMENTS (Common) -->
+      <!-- ============================================================ -->
+      <section class="tab-pane" id="pane-notifications">
+        <div class="section-hero">
+          <div>
+            <h2 class="section-title">Notifications & Announcements Center</h2>
+            <p class="section-subtitle">Real-time alerts, event reminders, automated capacity triggers, and organizer broadcasts.</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn btn-outline btn-sm" id="btn-mark-all-read-center">
+              <i class="fa-solid fa-check-double"></i> Mark All as Read
+            </button>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Organizer Broadcast Composer (Visible to Organizers) -->
+          <div class="glass-panel form-card" id="organizer-broadcast-card">
+            <div class="card-header-styled">
+              <div class="step-badge icon-badge"><i class="fa-solid fa-bullhorn"></i></div>
+              <div>
+                <h3>Dispatch Event Announcement</h3>
+                <p>Broadcast instant notifications to all students or specific event attendees.</p>
+              </div>
+            </div>
+
+            <form id="broadcast-form" class="app-form">
+              <div class="form-group">
+                <label for="broadcast-target">Target Event *</label>
+                <select id="broadcast-target" required>
+                  <option value="all">All Events (Campus-wide)</option>
+                  <!-- Populated by JS -->
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="broadcast-title">Announcement Headline *</label>
+                <input type="text" id="broadcast-title" placeholder="e.g. Venue Update / Schedule Shift" required />
+              </div>
+
+              <div class="form-group">
+                <label for="broadcast-message">Announcement Message *</label>
+                <textarea id="broadcast-message" rows="3" placeholder="Key updates regarding venue instructions, timings, or keynote speakers..." required></textarea>
+              </div>
+
+              <div class="form-group">
+                <label>Urgency Level</label>
+                <div class="radio-group">
+                  <label class="radio-label">
+                    <input type="radio" name="broadcast-type" value="info" checked>
+                    <span>General Info</span>
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="broadcast-type" value="urgent">
+                    <span>Urgent Alert</span>
+                  </label>
+                  <label class="radio-label">
+                    <input type="radio" name="broadcast-type" value="schedule">
+                    <span>Schedule Update</span>
+                  </label>
+                </div>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block" id="btn-send-broadcast">
+                <i class="fa-solid fa-paper-plane"></i> Broadcast Instant Notification
+              </button>
+            </form>
+          </div>
+
+          <!-- Notification Feed -->
+          <div class="glass-panel">
+            <div class="card-header-styled">
+              <div class="step-badge icon-badge"><i class="fa-solid fa-bell"></i></div>
+              <div>
+                <h3>Live Notification Feed</h3>
+                <p>Automated events, attendance confirmations, and capacity alerts.</p>
+              </div>
+            </div>
+
+            <div class="notif-feed-container" id="notif-feed-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Global Footer -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <div>
+          <strong>EventHub Portal</strong> &bull; Centralized Real-Time Event Management System
+        </div>
+        <div class="footer-team">
+          Enterprise & Campus Edition &bull; All Rights Reserved
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: DEDICATED SEPARATE LOGIN FOR STUDENTS & ORGANIZERS -->
+  <!-- ============================================================ -->
+  <div class="modal-backdrop" id="auth-modal" style="display: none;">
+    <div class="modal-dialog auth-dialog">
+      <div class="auth-header">
+        <div class="auth-brand">
+          <div class="logo-icon"><i class="fa-solid fa-calendar-star"></i></div>
+          <div>
+            <h3>EventHub Portal Access</h3>
+            <p>Select your role to access your dedicated dashboard</p>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btn-close-auth-modal">&times;</button>
+      </div>
+
+      <!-- Role Switcher Tabs inside Login Modal -->
+      <div class="auth-role-tabs">
+        <button class="auth-role-tab active" id="tab-auth-student">
+          <i class="fa-solid fa-user-graduate"></i>
+          <span>Student Login</span>
+        </button>
+        <button class="auth-role-tab" id="tab-auth-organizer">
+          <i class="fa-solid fa-user-tie"></i>
+          <span>Organizer Login</span>
+        </button>
+      </div>
+
+      <div class="auth-body">
+        <!-- 1. STUDENT LOGIN FORM -->
+        <div id="student-auth-view" class="auth-pane active">
+          <div class="auth-banner student-banner">
+            <i class="fa-solid fa-graduation-cap"></i>
+            <div>
+              <strong>Student Access Portal</strong>
+              <p>Sign in to register for upcoming events and download your QR tickets.</p>
+            </div>
+          </div>
+
+          <form id="student-login-form" class="app-form">
+            <div class="form-group">
+              <label for="stu-email">Student Email</label>
+              <input type="email" id="stu-email" placeholder="student@campus.edu" value="student@campus.edu" required />
+            </div>
+
+            <div class="form-group">
+              <label for="stu-password">Password</label>
+              <input type="password" id="stu-password" placeholder="••••••••" value="student123" required />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-right-to-bracket"></i> Login as Student
+            </button>
+          </form>
+
+          <div class="quick-demo-login-box">
+            <span>⚡ Quick 1-Click Demo Login:</span>
+            <div class="quick-demo-buttons">
+              <button class="btn btn-sm btn-outline" onclick="quickLogin('student@campus.edu', 'student123', 'student')">
+                <i class="fa-solid fa-bolt"></i> Aarav Sharma (student@campus.edu)
+              </button>
+              <button class="btn btn-sm btn-outline" onclick="quickLogin('sneha@campus.edu', 'student123', 'student')">
+                <i class="fa-solid fa-bolt"></i> Sneha Patel (sneha@campus.edu)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. ORGANIZER LOGIN FORM -->
+        <div id="organizer-auth-view" class="auth-pane" style="display: none;">
+          <div class="auth-banner organizer-banner">
+            <i class="fa-solid fa-shield-halved"></i>
+            <div>
+              <strong>Organizer Administration Portal</strong>
+              <p>Sign in to manage events, scan QR attendance, and view real-time analytics.</p>
+            </div>
+          </div>
+
+          <form id="organizer-login-form" class="app-form">
+            <div class="form-group">
+              <label for="org-email">Organizer Email</label>
+              <input type="email" id="org-email" placeholder="organizer@campus.edu" value="organizer@campus.edu" required />
+            </div>
+
+            <div class="form-group">
+              <label for="org-password">Password</label>
+              <input type="password" id="org-password" placeholder="••••••••" value="admin123" required />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-key"></i> Login as Event Organizer
+            </button>
+          </form>
+
+          <div class="quick-demo-login-box">
+            <span>⚡ Quick 1-Click Demo Login:</span>
+            <div class="quick-demo-buttons">
+              <button class="btn btn-sm btn-outline" onclick="quickLogin('organizer@campus.edu', 'admin123', 'organizer')">
+                <i class="fa-solid fa-bolt"></i> Event Organizer (organizer@campus.edu)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: DIGITAL TICKET & QR PASS -->
+  <!-- ============================================================ -->
+  <div class="modal-backdrop" id="ticket-modal" style="display: none;">
+    <div class="modal-dialog ticket-dialog">
+      <button class="modal-close-btn" id="btn-close-ticket-modal">&times;</button>
+      
+      <div class="ticket-card-printable" id="printable-ticket-content">
+        <div class="ticket-header-strip">
+          <div class="ticket-brand">
+            <i class="fa-solid fa-ticket"></i>
+            <span>Official Event Pass</span>
+          </div>
+          <div class="ticket-status-pill" id="ticket-modal-status">CONFIRMED</div>
+        </div>
+
+        <div class="ticket-body">
+          <h2 class="ticket-event-title" id="ticket-modal-event-title">Event Title</h2>
+          <div class="ticket-meta-grid">
+            <div class="t-meta">
+              <span class="t-label">DATE & TIME</span>
+              <span class="t-val" id="ticket-modal-datetime">--</span>
+            </div>
+            <div class="t-meta">
+              <span class="t-label">VENUE</span>
+              <span class="t-val" id="ticket-modal-venue">--</span>
+            </div>
+            <div class="t-meta">
+              <span class="t-label">ATTENDEE</span>
+              <span class="t-val" id="ticket-modal-name">--</span>
+            </div>
+            <div class="t-meta">
+              <span class="t-label">STUDENT ID</span>
+              <span class="t-val" id="ticket-modal-roll">--</span>
+            </div>
+          </div>
+
+          <div class="ticket-divider">
+            <div class="cutout-left"></div>
+            <div class="dashed-line"></div>
+            <div class="cutout-right"></div>
+          </div>
+
+          <div class="ticket-qr-section">
+            <div class="qr-frame">
+              <img id="ticket-modal-qr-img" src="" alt="Ticket QR Code" />
+            </div>
+            <div class="ticket-id-display">
+              <span class="tid-label">OFFICIAL TICKET CODE</span>
+              <span class="tid-code" id="ticket-modal-ticket-id">TK-00000</span>
+              <p class="tid-instruction">Present this QR code at the event gate scanner for instant verification.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ticket-modal-actions">
+        <button class="btn btn-outline" id="btn-print-ticket">
+          <i class="fa-solid fa-print"></i> Print / Save Pass
+        </button>
+        <button class="btn btn-primary" id="btn-done-ticket">
+          <i class="fa-solid fa-check"></i> Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: CREATE EVENT (ORGANIZER ONLY) -->
+  <!-- ============================================================ -->
+  <div class="modal-backdrop" id="create-event-modal" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <i class="fa-solid fa-calendar-plus"></i>
+          <h3>Create New Campus Event</h3>
+        </div>
+        <button class="modal-close-btn" id="btn-close-create-event">&times;</button>
+      </div>
+
+      <form id="create-event-form" class="app-form modal-body">
+        <div class="form-group">
+          <label for="evt-title">Event Title *</label>
+          <input type="text" id="evt-title" placeholder="e.g. AI & Robotics Innovation Summit" required />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="evt-category">Category *</label>
+            <select id="evt-category" required>
+              <option value="Artificial Intelligence">Artificial Intelligence</option>
+              <option value="Hackathon">Hackathon</option>
+              <option value="Workshop">Workshop</option>
+              <option value="Cybersecurity">Cybersecurity</option>
+              <option value="Cultural">Cultural</option>
+              <option value="Sports & E-Sports">Sports & E-Sports</option>
+              <option value="Seminar">Seminar</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="evt-capacity">Seat Capacity *</label>
+            <input type="number" id="evt-capacity" min="5" max="5000" value="100" required />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="evt-date">Event Date *</label>
+            <input type="date" id="evt-date" required />
+          </div>
+          <div class="form-group">
+            <label for="evt-time">Timing *</label>
+            <input type="text" id="evt-time" placeholder="e.g. 10:00 AM - 04:00 PM" required />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="evt-venue">Venue / Location *</label>
+          <input type="text" id="evt-venue" placeholder="e.g. Block C Auditorium, Campus Center" required />
+        </div>
+
+        <div class="form-group">
+          <label for="evt-organizer">Host / Organizing Department</label>
+          <input type="text" id="evt-organizer" placeholder="e.g. Central Event Committee" value="Central Event Committee" />
+        </div>
+
+        <div class="form-group">
+          <label for="evt-desc">Event Description</label>
+          <textarea id="evt-desc" rows="3" placeholder="Provide overview, key topics, eligibility, or guidelines..."></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="btn-cancel-create-event">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-event">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Publish Event
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
